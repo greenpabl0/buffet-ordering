@@ -31,7 +31,6 @@ create table employee
 	(
     emp_id 			int auto_increment primary key,
     emp_name 		varchar(100) not null,
-    role_id 		int,
     phone 			varchar(20),
 	);
 
