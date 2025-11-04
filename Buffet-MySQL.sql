@@ -80,7 +80,6 @@ create table bill
     total_amount 	decimal(10,2) not null,
     discount 		decimal(10,2) default 0,
     net_amount 		decimal(10,2) generated always as (total_amount - discount) stored,
-    pay_method 		enum('Cash','Credit Card','QR','Other') not null,
     pay_time 		datetime default current_timestamp,
     foreign key (order_id) references orders(order_id)
         on delete cascade,
