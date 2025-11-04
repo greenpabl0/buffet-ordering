@@ -27,21 +27,12 @@ create table restaurant_table
     status 			enum('Available','Occupied','Reserved') default 'Available'
 	);
 
-create table employee_role 
-	(
-    role_id 		int auto_increment primary key,
-    role_name 		varchar(50) not null
-	);
-
 create table employee 
 	(
     emp_id 			int auto_increment primary key,
     emp_name 		varchar(100) not null,
     role_id 		int,
     phone 			varchar(20),
-    foreign key (role_id) references employee_role(role_id)
-        on update cascade
-        on delete set null
 	);
 
 create table menu 
@@ -85,7 +76,7 @@ create table bill
     bill_id 		int auto_increment primary key,
     order_id 		int not null,
     customer_id 	int,
-    cashier_emp_id 	int,
+    emp_id 	int,
     total_amount 	decimal(10,2) not null,
     discount 		decimal(10,2) default 0,
     net_amount 		decimal(10,2) generated always as (total_amount - discount) stored,
@@ -95,6 +86,6 @@ create table bill
         on delete cascade,
     foreign key (customer_id) references customer(customer_id)
         on delete set null,
-    foreign key (cashier_emp_id) references employee(emp_id)
+    foreign key (emp_id) references employee(emp_id)
         on delete set null
 	);
