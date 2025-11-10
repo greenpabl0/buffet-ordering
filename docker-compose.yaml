@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # 1. ฐานข้อมูล Service (PostgreSQL)
+  db:
+    image: postgres:14-alpine
+    container_name: postgres_db_dev
+    restart: always
+    environment:
+      # **กำหนดค่าฐานข้อมูล**
+      POSTGRES_USER: myuser 
+      POSTGRES_PASSWORD: mypassword 
+      POSTGRES_DB: myappdb
+    ports:
+      # พอร์ตสำหรับการเข้าถึง DB จากเครื่องโฮสต์ (ตัวเลือก)
+      - "5432:5432" 
+    volumes:
+      # **สำคัญ:** เก็บข้อมูล DB อย่างถาวร
+      - postgres_data:/var/lib/postgresql/data 
+
+  # 2. แอปพลิเคชัน Service (เว็บ)
+  web:
+    # หากคุณใช้ Dockerfile ในโฟลเดอร์เดียวกัน
+    build: . 
+    # หรือใช้ image สำเร็จรูป: image: yourname/app:tag
+    container_name: my_app_web_dev
+    ports:
+      # แมปพอร์ตโฮสต์:คอนเทนเนอร์ (สมมติแอปใช้พอร์ต 80)
+      - "8080:80"
+    environment:
+      # **กำหนดค่าการเชื่อมต่อ DB ให้แอป**
+      DB_HOST: db        # ใช้ชื่อ Service 'db' เป็น Hostname
+      DB_USER: myuser
+      DB_PASSWORD: mypassword
+      DB_NAME: myappdb
+    depends_on:
+      # บอกให้ Docker Compose เริ่ม 'db' ก่อน 'web'
+      - db
+    
+volumes:
+  # กำหนด Named Volume สำหรับ Service 'db'
+  postgres_data:
