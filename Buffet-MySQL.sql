@@ -2,12 +2,12 @@ drop schema if exists Buffet;
 create schema Buffet;
 use Buffet;
 
-drop table bill;
-drop table employee;
-drop table menu;
-drop table orders;
-drop table order_detail;
-drop table restaurant_table;
+drop table if exists bill;
+drop table if exists order_detail;
+drop table if exists orders;
+drop table if exists menu;
+drop table if exists employee;
+drop table if exists restaurant_table;
 
 
 create table restaurant_table 
@@ -22,7 +22,7 @@ create table employee
 	(
     emp_id 			int auto_increment primary key,
     emp_name 		varchar(100) not null,
-    phone 			varchar(20),
+    phone 			varchar(20)
 	);
 
 create table menu 
@@ -50,7 +50,7 @@ create table orders
     num_of_customers int check (num_of_customers > 0),
     foreign key (table_id) references restaurant_table(table_id)
         on update cascade
-        on delete restrict
+        on delete restrict,
     foreign key (emp_id) references employee(emp_id)
         on delete set null
 	);
