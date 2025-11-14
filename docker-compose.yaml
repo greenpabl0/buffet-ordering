@@ -1,0 +1,56 @@
+
+services:
+  # 1. บริการฐานข้อมูล (DB Service)
+  db:
+    image: mysql:8.0 # เลือก Image ฐานข้อมูลที่คุณต้องการ
+    container_name: buffet_db
+    environment:
+      # ตั้งค่ารหัสผ่านและฐานข้อมูล
+      MYSQL_ROOT_PASSWORD: your_root_password
+      MYSQL_DATABASE: Buffet
+      MYSQL_USER: buffet_user
+      MYSQL_PASSWORD: buffet_password
+    volumes:
+      # ใช้ Volume เพื่อเก็บข้อมูล DB และโหลดไฟล์ SQL เริ่มต้น
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql # ตำแหน่งไฟล์ SQL ของคุณ
+      - db_data:/var/lib/mysql # เก็บข้อมูล DB อย่างถาวร
+    ports:
+      - "3306:3306" # (ทางเลือก: เพื่อให้เข้าถึง DB จากภายนอก Docker ได้)
+    restart: always
+
+  # 2. บริการเว็บแอปพลิเคชัน (Web Service)
+  web:
+    build:
+      context: ./web/hotpot-table-buddy/src # ระบุที่ตั้งของ Dockerfile สำหรับเว็บแอปของคุณ
+      dockerfile: Dockerfile
+    container_name: buffet_web
+    ports:
+      - "80:8080" # แมปพอร์ต Host (80) ไปยังพอร์ต Container (8080)
+    depends_on:
+      - db # กำหนดให้ web service รอจนกว่า db service จะพร้อมใช้งาน
+    environment:
+      # ส่งค่า Environment Variable สำหรับการเชื่อมต่อ DB ไปให้เว็บแอป
+      DB_HOST: db # **สำคัญ:** ใช้ชื่อ service 'db' เป็นชื่อโฮสต์
+      DB_USER: buffet_user
+      DB_PASSWORD: buffet_password
+      DB_NAME: Buffet
+   # restart: always
+
+  # 3. บริการจัดการฐานข้อมูล (เช่น phpMyAdmin)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: buffet_pma
+    links:
+      - db:mysql # เชื่อมต่อกับ service 'db'
+    environment:
+      MYSQL_ROOT_PASSWORD: your_root_password # ใช้รหัสผ่าน root เดียวกัน
+      PMA_HOST: db # **สำคัญ:** ใช้ชื่อ service 'db' เป็นชื่อโฮสต์
+      PMA_PORT: 3306
+    ports:
+      - "8080:80" # เข้าถึงได้ที่ http://localhost:8080
+    depends_on:
+      - db
+
+# 4. กำหนด Volumes
+volumes:
+  db_data:
