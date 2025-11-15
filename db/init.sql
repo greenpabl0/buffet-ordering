@@ -76,3 +76,70 @@ create table bill
     foreign key (emp_id) references employee(emp_id)
         on delete set null
 	);
+
+
+-- mock data insertion
+
+-- menu items
+INSERT INTO menu (menu_name, category, price, is_buffet) VALUES
+-- Meat/Pork
+('Wagyu A5 Beef (Premium)', 'meat', 199.00, FALSE),
+('Australian Beef (Premium)', 'meat', 99.00, FALSE),
+('Pork Belly Slices', 'meat', 0.00, TRUE),
+('Pork Slices', 'meat', 0.00, TRUE),
+('Beef Slices', 'meat', 0.00, TRUE),
+('Minced Pork', 'meat', 0.00, TRUE),
+
+-- Seafood
+('River Prawns (Premium)', 'seafood', 149.00, FALSE),
+('White Shrimp', 'seafood', 0.00, TRUE),
+('Squid', 'seafood', 0.00, TRUE),
+('Mussels', 'seafood', 0.00, TRUE),
+('Dory Fish', 'seafood', 0.00, TRUE),
+('Crab Sticks', 'seafood', 0.00, TRUE),
+
+-- Vegetables
+('Chinese Water Spinach', 'vegetables', 0.00, TRUE),
+('Chinese Cabbage', 'vegetables', 0.00, TRUE),
+('Spring Onion', 'vegetables', 0.00, TRUE),
+('Enoki Mushroom', 'vegetables', 0.00, TRUE),
+('Straw Mushroom', 'vegetables', 0.00, TRUE),
+('Baby Corn', 'vegetables', 0.00, TRUE),
+
+-- Balls/Noodles
+('Fish Balls', 'balls', 0.00, TRUE),
+('Beef Balls', 'balls', 0.00, TRUE),
+('Shrimp Balls', 'balls', 0.00, TRUE),
+('Egg Noodles', 'balls', 0.00, TRUE),
+('Udon Noodles', 'balls', 0.00, TRUE),
+('Glass Noodles', 'balls', 0.00, TRUE),
+
+-- A La Carte Dishes
+('Fried Chicken Wings', 'alacarte', 89.00, FALSE),
+('French Fries', 'alacarte', 59.00, FALSE),
+('Garlic Fried Rice', 'alacarte', 69.00, FALSE),
+('Chicken Karaage', 'alacarte', 79.00, FALSE),
+
+-- Desserts
+('Vanilla Ice Cream', 'desserts', 0.00, TRUE),
+('Chocolate Ice Cream', 'desserts', 0.00, TRUE),
+('Strawberry Ice Cream', 'desserts', 0.00, TRUE),
+('Chocolate Cake', 'desserts', 49.00, FALSE);
+
+-- restaurant tables
+INSERT INTO restaurant_table (table_number, capacity) VALUES
+(1, 4), 
+(2, 4), 
+(3, 6), 
+(4, 2), 
+(5, 8), 
+(6, 4), 
+(7, 2), 
+(8, 6), 
+(9, 4);
+
+-- employees
+INSERT INTO employee (emp_name, phone) VALUES
+('Sompong Sookjai', '0812345678'),
+('Suda Rakdee', '0898765432'),
+('Manee Khunmee', '0925551212');
