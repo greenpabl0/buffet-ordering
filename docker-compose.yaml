@@ -20,7 +20,7 @@ services:
   # 2. บริการเว็บแอปพลิเคชัน (Web Service)
   web:
     build:
-      context: ./web/hotpot-table-buddy/src # ระบุที่ตั้งของ Dockerfile สำหรับเว็บแอปของคุณ
+      context: ./web/customer_/src # ระบุที่ตั้งของ Dockerfile สำหรับเว็บแอปของคุณ
       dockerfile: Dockerfile
     container_name: buffet_web
     ports:
@@ -35,7 +35,7 @@ services:
       DB_NAME: Buffet
     command: npm run dev
     volumes:
-      - ./web/hotpot-table-buddy/src:/app # แมปโฟลเดอร์โค้ดของคุณไปยังโฟลเดอร์ใน Container
+      - ./web/customer_/src:/app # แมปโฟลเดอร์โค้ดของคุณไปยังโฟลเดอร์ใน Container
       - /app/node_modules # ป้องกันไม่ให้โฟลเดอร์ node_modules ถูกแมปทับ
    # restart: always
 
