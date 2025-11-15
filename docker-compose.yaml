@@ -11,35 +11,13 @@ services:
       MYSQL_PASSWORD: buffet_password
     volumes:
       # ใช้ Volume เพื่อเก็บข้อมูล DB และโหลดไฟล์ SQL เริ่มต้น
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql # ตำแหน่งไฟล์ SQL ของคุณ
-      - db_data:/var/lib/mysql # เก็บข้อมูล DB อย่างถาวร
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql 
+      - db_data:/var/lib/mysql 
     ports:
       - "3306:3306" # (ทางเลือก: เพื่อให้เข้าถึง DB จากภายนอก Docker ได้)
     restart: always
 
-  # 2. บริการเว็บแอปพลิเคชัน (Web Service)
-  web:
-    build:
-      context: ./web/customer_/src # ระบุที่ตั้งของ Dockerfile สำหรับเว็บแอปของคุณ
-      dockerfile: Dockerfile
-    container_name: buffet_web
-    ports:
-      - "80:8080" # แมปพอร์ต Host (80) ไปยังพอร์ต Container (8080)
-    depends_on:
-      - db # กำหนดให้ web service รอจนกว่า db service จะพร้อมใช้งาน
-    environment:
-      # ส่งค่า Environment Variable สำหรับการเชื่อมต่อ DB ไปให้เว็บแอป
-      DB_HOST: db # **สำคัญ:** ใช้ชื่อ service 'db' เป็นชื่อโฮสต์
-      DB_USER: buffet_user
-      DB_PASSWORD: buffet_password
-      DB_NAME: Buffet
-    command: npm run dev
-    volumes:
-      - ./web/customer_/src:/app # แมปโฟลเดอร์โค้ดของคุณไปยังโฟลเดอร์ใน Container
-      - /app/node_modules # ป้องกันไม่ให้โฟลเดอร์ node_modules ถูกแมปทับ
-   # restart: always
-
-  # 3. บริการจัดการฐานข้อมูล (เช่น phpMyAdmin)
+  # 2. บริการจัดการฐานข้อมูล (เช่น phpMyAdmin)
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: buffet_pma
@@ -54,6 +32,45 @@ services:
     depends_on:
       - db
 
-# 4. กำหนด Volumes
+# 3. **เพิ่ม:** บริการ Backend API (ตัวกลางเชื่อมต่อ DB)
+  backend:
+    build: 
+      context: ./backend # ชี้ไปยังโฟลเดอร์ Backend ของคุณ
+      dockerfile: Dockerfile
+    container_name: buffet_backend
+    ports:
+      - "5000:5000" # Map พอร์ต API (5000 เป็นพอร์ตมาตรฐาน)
+    environment:
+      # **ส่งค่า Environment Variables ให้ Backend API**
+      DB_HOST: db # Backend เชื่อมต่อกับ DB โดยตรง
+      DB_USER: buffet_user
+      DB_PASSWORD: buffet_password
+      DB_NAME: Buffet
+    command: npm run start # หรือ npm run dev ถ้าคุณมี Nodemon
+    volumes:
+      - ./backend:/app # แมปโค้ด Backend
+      - /app/node_modules # ป้องกัน node_modules ถูกแมปทับ
+    depends_on:
+      - db # ต้องรอ DB ให้พร้อมก่อน
+    restart: always
+
+# 4. บริการเว็บแอปพลิเคชัน (Web Service)
+  web:
+    build:
+      context: ./web/customer_ # ระบุที่ตั้งของ Dockerfile สำหรับเว็บแอปของคุณ
+      dockerfile: Dockerfile.dev
+    container_name: buffet_web
+    ports:
+      - "3000:8080" 
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://backend:5000 # กำหนด URL ของ Backend API
+    command: npm run dev -- --host 0.0.0.0 --port 8080
+    volumes:
+      - ./web/customer_:/app # แมปโฟลเดอร์โค้ดของคุณไปยังโฟลเดอร์ใน Container
+      - /app/node_modules # ป้องกันไม่ให้โฟลเดอร์ node_modules ถูกแมปทับ
+
+# 5. กำหนด Volumes
 volumes:
   db_data:
