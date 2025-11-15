@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Hot Pot Restaurant Theme */
+    --background: 28 43% 92%; /* #f2e5d6 - warm cream background */
+    --foreground: 200 30% 25%; /* #2f4a60 - deep blue-grey for text */
+
+    --card: 32 33% 81%; /* #cab39b - light tan for cards */
+    --card-foreground: 200 30% 25%;
+
+    --popover: 32 33% 81%;
+    --popover-foreground: 200 30% 25%;
+
+    --primary: 158 77% 23%; /* #0c6642 - deep green for actions */
+    --primary-foreground: 28 43% 92%; /* light text on primary */
+
+    --secondary: 200 30% 28%; /* #2f4a60 - dark blue-grey accent */
+    --secondary-foreground: 28 43% 92%;
+
+    --muted: 32 33% 81%; /* #cab39b */
+    --muted-foreground: 200 20% 45%;
+
+    --accent: 32 33% 75%; /* slightly darker tan for highlights */
+    --accent-foreground: 200 30% 25%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 28 43% 92%;
+
+    --border: 32 25% 70%; /* subtle border */
+    --input: 32 33% 81%;
+    --ring: 158 77% 23%;
+
+    --radius: 0.75rem; /* slightly more rounded for warmth */
+
+    /* Status colors */
+    --status-preparing: 45 100% 85%; /* light yellow */
+    --status-serving: 30 100% 75%; /* light orange */
+    --status-served: 145 60% 80%; /* light green */
+
+    /* Premium badge */
+    --premium: 25 90% 55%; /* gold/orange for premium items */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
