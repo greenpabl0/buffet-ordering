@@ -39,6 +39,26 @@ app.get('/api/menu', async (req, res) => {
     }
 });
 
+app.get('/api/employee', async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM employee');
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching employee:', error);
+        res.status(500).json({ error: 'Failed to fetch employee data' });
+    }
+});
+
+app.get('/api/restaurant_table', async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM restaurant_table');
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching restaurant_table:', error);
+        res.status(500).json({ error: 'Failed to fetch restaurant_table data' });
+    }
+});
+
 // --- Start Server ---
 app.listen(port, () => {
     console.log(`Backend API listening on port ${port}`);
