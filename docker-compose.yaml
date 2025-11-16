@@ -55,11 +55,11 @@ services:
     restart: always
 
 # 4. บริการเว็บแอปพลิเคชัน (Web Service)
-  web:
+  web_customer:
     build:
       context: ./web/customer_ # ระบุที่ตั้งของ Dockerfile สำหรับเว็บแอปของคุณ
       dockerfile: Dockerfile.dev
-    container_name: buffet_web
+    container_name: buffet_web_customer
     ports:
       - "3000:8080" 
     depends_on:
@@ -70,6 +70,38 @@ services:
     volumes:
       - ./web/customer_:/app # แมปโฟลเดอร์โค้ดของคุณไปยังโฟลเดอร์ใน Container
       - /app/node_modules # ป้องกันไม่ให้โฟลเดอร์ node_modules ถูกแมปทับ
+
+  web_table:
+    build:
+      context: ./web/table_ 
+      dockerfile: Dockerfile.dev
+    container_name: buffet_web_table
+    ports:
+      - "3001:8080" 
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://backend:5000 
+    command: npm run dev -- --host 0.0.0.0 --port 8080
+    volumes:
+      - ./web/table_:/app 
+      - /app/node_modules
+
+  web_kitchen:
+    build:
+      context: ./web/kitchen_ 
+      dockerfile: Dockerfile.dev
+    container_name: buffet_web_kitchen
+    ports:
+      - "3002:8080" 
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://backend:5000 
+    command: npm run dev -- --host 0.0.0.0 --port 8080
+    volumes:
+      - ./web/kitchen_:/app
+      - /app/node_modules
 
 # 5. กำหนด Volumes
 volumes:
