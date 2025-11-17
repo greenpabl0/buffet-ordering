@@ -55,7 +55,7 @@ services:
     restart: always
 
 # 4. บริการเว็บแอปพลิเคชัน (Web Service)
-  web_customer:
+  web_customer: # customer_page
     build:
       context: ./web/customer_ # ระบุที่ตั้งของ Dockerfile สำหรับเว็บแอปของคุณ
       dockerfile: Dockerfile.dev
@@ -73,7 +73,7 @@ services:
 
   web_table:
     build:
-      context: ./web/table_ 
+      context: ./web/table_ # table_page
       dockerfile: Dockerfile.dev
     container_name: buffet_web_table
     ports:
@@ -89,7 +89,7 @@ services:
 
   web_kitchen:
     build:
-      context: ./web/kitchen_ 
+      context: ./web/kitchen_ # kitchen_page
       dockerfile: Dockerfile.dev
     container_name: buffet_web_kitchen
     ports:
