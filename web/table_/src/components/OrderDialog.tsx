@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { CounterButton } from "@/components/CounterButton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { stat } from "fs";
+import { start } from "repl";
 
 interface OrderDialogProps {
   tableNumber: number;
@@ -45,46 +47,41 @@ export function OrderDialog({
   const refills = totalPeople;
   const total = adults * adultPrice + kids * kidPrice + refills * refillPrice;
 
-  const handleCreateOrder = async () => {
-    if (adults === 0 && kids === 0) {
-      toast.error("กรุณาเพิ่มผู้ใหญ่หรือเด็กอย่างน้อย 1 คน");
-      return;
-    }
+  const startTime = new Date();
+  const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
 
-    setLoading(true);
+const handleCreateOrder = async () => {
+  if (adults === 0 && kids === 0) {
+    toast.error("กรุณาเพิ่มผู้ใหญ่หรือเด็กอย่างน้อย 1 คน");
+    return;
+  }
 
-    const startTime = new Date();
-    const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
+  setLoading(true);
 
-    const { data, error } = await supabase
-      .from("orders")
-      .insert({
-        branch_id: branchId,
-        table_number: tableNumber,
-        adults_count: adults,
-        kids_count: kids,
-        refills_count: refills,
-        total_amount: total,
-        order_date: orderDate,
-        status: "active",
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
+  try {
+    const response = await fetch(`http://localhost:5000/api/restaurant_table/${tableNumber}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        capacity: adults + kids,
+        status: "Occupied"
       })
-      .select()
-      .single();
+    });
 
-    setLoading(false);
+    const data = await response.json();
 
-    if (error) {
-      toast.error("สร้างออเดอร์ไม่สำเร็จ");
-      console.error(error);
-      return;
-    }
+    if (!response.ok) throw new Error(data.error || "Failed to update table");
 
     toast.success("สร้างออเดอร์สำเร็จ");
     onOrderCreated();
-    navigate(`/order-summary/${data.id}`);
-  };
+    navigate(`/order-summary/${tableNumber}`);
+  } catch (error) {
+    console.error(error);
+    toast.error("สร้างออเดอร์ไม่สำเร็จ");
+  }
+
+  setLoading(false);
+};
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

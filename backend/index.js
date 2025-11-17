@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const mysql = require('mysql2/promise'); // ใช้ promise-based pool
 const app = express();
 const port = 5000; // ใช้พอร์ตเดียวกับที่กำหนดใน Docker Compose
@@ -20,6 +21,13 @@ try {
 } catch (error) {
     console.error('Failed to create database pool:', error);
 }
+
+app.use(cors({
+    origin: "http://localhost:8080",   // อนุญาตให้ frontend เข้าถึง
+    methods: ["GET", "POST", "PUT", "DELETE"], 
+    credentials: true
+}));
+app.options("*", cors());
 
 app.use(express.json()); // Middleware สำหรับอ่าน JSON body
 
@@ -49,13 +57,24 @@ app.get('/api/employee', async (req, res) => {
     }
 });
 
-app.get('/api/restaurant_table', async (req, res) => {
+app.put('/api/restaurant_table/:table_number', async (req, res) => {
+    const { table_number } = req.params;
+    const { capacity, status } = req.body;
+
     try {
-        const [rows] = await pool.query('SELECT * FROM restaurant_table');
-        res.json(rows);
+        const [result] = await pool.query(
+            'UPDATE restaurant_table SET capacity = ?, status = ? WHERE table_number = ?',
+            [capacity, status, table_number]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Table not found" });
+        }
+
+        res.json({ success: true, table_number, message: "Table updated successfully" });
     } catch (error) {
-        console.error('Error fetching restaurant_table:', error);
-        res.status(500).json({ error: 'Failed to fetch restaurant_table data' });
+        console.error("Error updating table:", error);
+        res.status(500).json({ error: "Failed to update table" });
     }
 });
 

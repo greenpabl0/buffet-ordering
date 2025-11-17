@@ -1,9 +1,10 @@
-FROM node:20-alpine
+FROM node:20
 
 WORKDIR /app
 
 # คัดลอก dependencies และติดตั้ง
 COPY package.json package-lock.json ./
+COPY package*.json ./
 RUN npm install --production 
 
 # คัดลอกโค้ดทั้งหมด (รวมถึง index.js/server.js)
