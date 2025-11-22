@@ -1,108 +1,104 @@
 services:
-  # 1. บริการฐานข้อมูล (DB Service)
   db:
-    image: mysql:8.0 # เลือก Image ฐานข้อมูลที่คุณต้องการ
+    image: mysql:8.0
     container_name: buffet_db
     environment:
-      # ตั้งค่ารหัสผ่านและฐานข้อมูล
       MYSQL_ROOT_PASSWORD: your_root_password
       MYSQL_DATABASE: Buffet
       MYSQL_USER: buffet_user
       MYSQL_PASSWORD: buffet_password
     volumes:
-      # ใช้ Volume เพื่อเก็บข้อมูล DB และโหลดไฟล์ SQL เริ่มต้น
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql 
       - db_data:/var/lib/mysql 
     ports:
-      - "3306:3306" # (ทางเลือก: เพื่อให้เข้าถึง DB จากภายนอก Docker ได้)
+      - "3306:3306"
     restart: always
 
-  # 2. บริการจัดการฐานข้อมูล (เช่น phpMyAdmin)
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: buffet_pma
     links:
-      - db:mysql # เชื่อมต่อกับ service 'db'
+      - db:mysql
     environment:
-      MYSQL_ROOT_PASSWORD: your_root_password # ใช้รหัสผ่าน root เดียวกัน
-      PMA_HOST: db # **สำคัญ:** ใช้ชื่อ service 'db' เป็นชื่อโฮสต์
+      MYSQL_ROOT_PASSWORD: your_root_password
+      PMA_HOST: db
       PMA_PORT: 3306
     ports:
-      - "8081:80" # เข้าถึงได้ที่ http://localhost:8081
+      - "8081:80"
     depends_on:
       - db
 
-# 3. **เพิ่ม:** บริการ Backend API (ตัวกลางเชื่อมต่อ DB)
   backend:
     build: 
-      context: ./backend # ชี้ไปยังโฟลเดอร์ Backend ของคุณ
+      context: ./backend
       dockerfile: Dockerfile
     container_name: buffet_backend
     ports:
-      - "5000:5000" # Map พอร์ต API (5000 เป็นพอร์ตมาตรฐาน)
+      - "5000:5000"
     environment:
-      # **ส่งค่า Environment Variables ให้ Backend API**
-      DB_HOST: db # Backend เชื่อมต่อกับ DB โดยตรง
+      DB_HOST: db
       DB_USER: buffet_user
       DB_PASSWORD: buffet_password
       DB_NAME: Buffet
-    command: npm run start # หรือ npm run dev ถ้าคุณมี Nodemon
+    command: npm run start
     volumes:
-      - ./backend:/app # แมปโค้ด Backend
-      - /app/node_modules # ป้องกัน node_modules ถูกแมปทับ
+      - ./backend:/app
+      - /app/node_modules
     depends_on:
-      - db # ต้องรอ DB ให้พร้อมก่อน
+      - db
     restart: always
 
-# 4. บริการเว็บแอปพลิเคชัน (Web Service)
-  web_customer: # customer_page
+  web_customer:
     build:
-      context: ./web/customer_ # ระบุที่ตั้งของ Dockerfile สำหรับเว็บแอปของคุณ
+      context: ./web/customer_
       dockerfile: Dockerfile.dev
     container_name: buffet_web_customer
     ports:
-      - "3000:8080" 
+      - "3000:8080"
     depends_on:
       - backend
     environment:
-      REACT_APP_API_URL: http://backend:5000 # กำหนด URL ของ Backend API
+      # Browser calls API at localhost:5000
+      REACT_APP_API_URL: http://localhost:5000
+      VITE_API_URL: http://localhost:5000 
     command: npm run dev -- --host 0.0.0.0 --port 8080
     volumes:
-      - ./web/customer_:/app # แมปโฟลเดอร์โค้ดของคุณไปยังโฟลเดอร์ใน Container
-      - /app/node_modules # ป้องกันไม่ให้โฟลเดอร์ node_modules ถูกแมปทับ
+      - ./web/customer_:/app
+      - /app/node_modules
 
   web_table:
     build:
-      context: ./web/table_ # table_page
+      context: ./web/table_
       dockerfile: Dockerfile.dev
     container_name: buffet_web_table
     ports:
-      - "3001:8080" 
+      - "3001:8080"
     depends_on:
       - backend
     environment:
-      REACT_APP_API_URL: http://backend:5000 
+      REACT_APP_API_URL: http://localhost:5000
+      VITE_API_URL: http://localhost:5000
     command: npm run dev -- --host 0.0.0.0 --port 8080
     volumes:
-      - ./web/table_:/app 
+      - ./web/table_:/app
       - /app/node_modules
 
   web_kitchen:
     build:
-      context: ./web/kitchen_ # kitchen_page
+      context: ./web/kitchen_
       dockerfile: Dockerfile.dev
     container_name: buffet_web_kitchen
     ports:
-      - "3002:8080" 
+      - "3002:8080"
     depends_on:
       - backend
     environment:
-      REACT_APP_API_URL: http://backend:5000 
+      REACT_APP_API_URL: http://localhost:5000
+      VITE_API_URL: http://localhost:5000
     command: npm run dev -- --host 0.0.0.0 --port 8080
     volumes:
       - ./web/kitchen_:/app
       - /app/node_modules
 
-# 5. กำหนด Volumes
 volumes:
   db_data:

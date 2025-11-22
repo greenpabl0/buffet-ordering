@@ -11,10 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { CounterButton } from "@/components/CounterButton";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { stat } from "fs";
-import { start } from "repl";
 
 interface OrderDialogProps {
   tableNumber: number;
@@ -41,96 +38,88 @@ export function OrderDialog({
   const adultPrice = 299;
   const kidPrice = 199;
   const refillPrice = 29;
-
-  // Auto-calculate refills based on total people
   const totalPeople = adults + kids;
   const refills = totalPeople;
   const total = adults * adultPrice + kids * kidPrice + refills * refillPrice;
 
-  const startTime = new Date();
-  const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
+  const handleCreateOrder = async () => {
+    if (adults === 0 && kids === 0) {
+      toast.error("กรุณาเพิ่มผู้ใหญ่หรือเด็กอย่างน้อย 1 คน");
+      return;
+    }
 
-const handleCreateOrder = async () => {
-  if (adults === 0 && kids === 0) {
-    toast.error("กรุณาเพิ่มผู้ใหญ่หรือเด็กอย่างน้อย 1 คน");
-    return;
-  }
+    setLoading(true);
 
-  setLoading(true);
+    try {
+      // เรียก API เปิดโต๊ะใหม่
+      const response = await fetch(`http://localhost:5000/api/orders/open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table_number: tableNumber,
+          adults: adults,
+          children: kids
+        })
+      });
 
-  try {
-    const response = await fetch(`http://localhost:5000/api/restaurant_table/${tableNumber}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        capacity: adults + kids,
-        status: "Occupied"
-      })
-    });
+      const data = await response.json();
 
-    const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to create order");
 
-    if (!response.ok) throw new Error(data.error || "Failed to update table");
-
-    toast.success("สร้างออเดอร์สำเร็จ");
-    onOrderCreated();
-    navigate(`/order-summary/${tableNumber}`);
-  } catch (error) {
-    console.error(error);
-    toast.error("สร้างออเดอร์ไม่สำเร็จ");
-  }
-
-  setLoading(false);
-};
+      toast.success("เปิดโต๊ะสำเร็จ! Order ID: " + data.orderId);
+      onOrderCreated();
+      // ส่งไปหน้า Order Summary พร้อม Order ID ที่ได้จาก Backend
+      navigate(`/order-summary/${data.orderId}`);
+      
+    } catch (error: any) {
+      console.error(error);
+      toast.error("เกิดข้อผิดพลาด: " + error.message);
+    } finally {
+        setLoading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>โต๊ะ {tableNumber} - ออเดอร์ใหม่</DialogTitle>
+          <DialogTitle>โต๊ะ {tableNumber} - เปิดโต๊ะใหม่</DialogTitle>
           <DialogDescription>
-            ระบุจำนวนผู้ใหญ่และเด็ก
+            ระบุจำนวนลูกค้าเพื่อคำนวณราคาเริ่มต้น
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6 py-4">
           <div className="space-y-3">
-            <Label className="text-base">ผู้ใหญ่ (฿{adultPrice} คน)</Label>
+            <Label className="text-base">ผู้ใหญ่ (฿{adultPrice})</Label>
             <div className="flex justify-center">
               <CounterButton value={adults} onChange={setAdults} />
             </div>
           </div>
           <div className="space-y-3">
-            <Label className="text-base">เด็ก (฿{kidPrice} คน)</Label>
+            <Label className="text-base">เด็ก (฿{kidPrice})</Label>
             <div className="flex justify-center">
               <CounterButton value={kids} onChange={setKids} />
             </div>
           </div>
           <div className="bg-secondary/30 rounded-lg p-4">
             <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">รีฟิลน้ำ ({totalPeople} คน × ฿{refillPrice})</span>
+              <span className="text-muted-foreground">รีฟิลน้ำ ({totalPeople} ท่าน)</span>
               <span className="font-semibold">฿{refills * refillPrice}</span>
             </div>
           </div>
           <div className="bg-primary/10 rounded-lg p-4 border-2 border-primary">
             <div className="flex justify-between items-center text-xl font-bold">
-              <span>ราคารวม</span>
+              <span>ยอดเริ่มต้น</span>
               <span className="text-primary">฿{total}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1 text-center">
-              เวลา 2 ชั่วโมง
-            </p>
           </div>
         </div>
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             ยกเลิก
           </Button>
           <Button onClick={handleCreateOrder} disabled={loading} size="lg">
-            {loading ? "กำลังสร้าง..." : "สร้างออเดอร์"}
+            {loading ? "กำลังบันทึก..." : "ยืนยันการเปิดโต๊ะ"}
           </Button>
         </DialogFooter>
       </DialogContent>

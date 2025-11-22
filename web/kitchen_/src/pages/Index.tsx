@@ -1,193 +1,215 @@
-import { useState, useEffect, useRef } from "react";
-import { Order, OrderItem } from "@/types/order";
-import { OrderStrip } from "@/components/OrderStrip";
-import { TableSelector } from "@/components/TableSelector";
-import { TableHistory } from "@/components/TableHistory";
-import { Button } from "@/components/ui/button";
-import { UtensilsCrossed } from "lucide-react";
+import { useState, useEffect } from "react";
+import { UtensilsCrossed, CheckCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 
-// Mock data generator for demo
-const generateMockOrder = (tableNumber: number): Order => {
-  const menuItems = [
-    "ปลาแซลมอนย่าง", "สเต็กเนื้อ", "ทอมยำกุ้ง", "ผัดไทย", "ส้มตำ", 
-    "ข้าวผัด", "ยำวุ้นเส้น", "ไก่ย่าง", "กุ้งแม่น้ำเผา", "หอยนางรมสด",
-    "ซูชิ", "ซาชิมิ", "เนื้อวากิว", "แกงเขียวหวาน", "ปูอบวุ้นเส้น",
-    "ปลากะพงทอดน้ำปลา", "หมูสามชั้นย่าง", "ข้าวเหนียวมะม่วง", "ไอศกรีม",
-    "ซุปมิโซะ", "เนื้อชาบู", "หอยแมลงภู่", "กุ้งทอดกระเทียม"
-  ];
-  
-  // Generate 1-10 items per order (unlimited items)
-  const numItems = Math.floor(Math.random() * 10) + 1;
-  const items: OrderItem[] = [];
-  const usedItems = new Set<string>();
-  
-  for (let i = 0; i < numItems; i++) {
-    let menuItem;
-    do {
-      menuItem = menuItems[Math.floor(Math.random() * menuItems.length)];
-    } while (usedItems.has(menuItem));
-    
-    usedItems.add(menuItem);
-    items.push({
-      menuItem,
-      quantity: Math.floor(Math.random() * 5) + 1,
-    });
-  }
-  
-  return {
-    id: `order-${Date.now()}-${Math.random()}`,
-    tableNumber,
-    items,
-    status: "waiting",
-    timestamp: new Date(),
-    isNew: true,
+// --- Interfaces ---
+
+interface OrderItem {
+  id?: number;
+  menuItem: string;
+  quantity: number;
+  status: string;
+}
+
+interface Order {
+  id: string;
+  tableNumber: number;
+  status: string;
+  timestamp: Date;
+  items: OrderItem[];
+  isNew?: boolean;
+}
+
+// --- Inline Components ---
+
+// Simple Button Component
+const Button = ({ className, children, onClick, disabled, size = "default", variant = "primary" }: any) => {
+  const baseStyle = "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+  const variants = {
+    primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+    outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+    ghost: "hover:bg-accent hover:text-accent-foreground"
   };
+  const sizes = {
+    default: "h-10 px-4 py-2",
+    sm: "h-9 rounded-md px-3",
+    lg: "h-11 rounded-md px-8",
+    icon: "h-10 w-10"
+  };
+  
+  // Note: Assuming Tailwind classes are available globally
+  const variantClass = variants[variant as keyof typeof variants] || variants.primary;
+  const sizeClass = sizes[size as keyof typeof sizes] || sizes.default;
+
+  return (
+    <button 
+      className={`${baseStyle} ${variantClass} ${sizeClass} ${className || ""}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
 };
+
+// OrderStrip Component
+const OrderStrip = ({ order, onServe }: { order: Order; onServe: (id: string) => void }) => {
+  const totalItems = order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  return (
+    <div className="bg-card rounded-lg border-2 border-border p-4 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+        {/* Table Number */}
+        <div className="flex-shrink-0 flex items-center gap-4">
+          <div className="bg-primary rounded-lg px-6 py-3 min-w-[100px] text-center text-white">
+            <div className="text-xs opacity-80 font-medium">Table</div>
+            <div className="text-4xl font-bold">{order.tableNumber}</div>
+          </div>
+          <div className="md:hidden">
+            <span className="font-semibold text-lg">
+                {order.timestamp.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        </div>
+
+        {/* Order Details */}
+        <div className="flex-1 w-full">
+            <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                    <Clock className="w-4 h-4" />
+                    <span>{order.timestamp.toLocaleTimeString('th-TH')}</span>
+                    {/* Time elapsed logic could go here */}
+                </div>
+                <div className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold uppercase tracking-wider">
+                    {order.status}
+                </div>
+            </div>
+
+            <div className="space-y-2 bg-secondary/20 p-4 rounded-md">
+                {order.items.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between border-b border-border/50 last:border-0 pb-2 last:pb-0">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-white text-foreground font-bold w-8 h-8 flex items-center justify-center rounded border shadow-sm">
+                                {item.quantity}
+                            </div>
+                            <span className="text-lg font-medium">{item.menuItem}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            
+            <div className="mt-3 flex justify-between items-center text-sm text-muted-foreground">
+                 <span>Total Items: {totalItems}</span>
+            </div>
+        </div>
+
+        {/* Action */}
+        <div className="flex-shrink-0 w-full md:w-auto self-stretch flex flex-col justify-center">
+            <Button 
+                onClick={() => onServe(order.id)}
+                size="lg"
+                className="w-full h-full min-h-[80px] text-lg font-bold bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all transform hover:scale-[1.02]"
+            >
+                <div className="flex flex-col items-center gap-1">
+                    <CheckCircle className="w-8 h-8" />
+                    <span>SERVE ALL</span>
+                </div>
+            </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main Page ---
 
 const Index = () => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [removingOrders, setRemovingOrders] = useState<Set<string>>(new Set());
-  const [tableSelectorOpen, setTableSelectorOpen] = useState(false);
-  const [tableHistoryOpen, setTableHistoryOpen] = useState(false);
-  const [selectedTable, setSelectedTable] = useState<number | null>(null);
-  const [allOrders, setAllOrders] = useState<Order[]>([]); // Store all orders for history
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize notification sound (bell sound)
+  // Polling fetch
   useEffect(() => {
-    audioRef.current = new Audio();
-    // Bell notification sound
-    audioRef.current.src = "data:audio/wav;base64,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";
-  }, []);
+    const fetchOrders = async () => {
+        try {
+            // Using localhost:5000 as configured in docker-compose
+            const res = await fetch("http://localhost:5000/api/kitchen/pending");
+            if(res.ok) {
+                const data = await res.json();
+                // Convert timestamp string to Date object
+                const formatted = data.map((o: any) => ({ 
+                    ...o, 
+                    timestamp: new Date(o.timestamp),
+                    // Ensure items is an array
+                    items: o.items || [] 
+                }));
+                setOrders(formatted);
+            }
+        } catch (e) { 
+            console.error("Connection error:", e);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  // Simulate receiving new orders
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const tableNumber = Math.floor(Math.random() * 9) + 1;
-      const newOrder = generateMockOrder(tableNumber);
-      
-      setOrders((prev) => [...prev, newOrder]);
-      setAllOrders((prev) => [...prev, newOrder]);
-      
-      // Play notification sound
-      if (audioRef.current) {
-        audioRef.current.play().catch((e) => console.log("Audio play failed:", e));
-      }
-      
-      const itemsText = newOrder.items.map(item => `${item.menuItem} (${item.quantity})`).join(", ");
-      toast.success("ออเดอร์ใหม่!", {
-        description: `โต๊ะ ${tableNumber} - ${itemsText}`,
-      });
-
-      // Remove the "new" flag after animation
-      setTimeout(() => {
-        setOrders((prev) =>
-          prev.map((order) =>
-            order.id === newOrder.id ? { ...order, isNew: false } : order
-          )
-        );
-      }, 2000);
-    }, 8000); // New order every 8 seconds
-
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 5000); // Refresh every 5s
     return () => clearInterval(interval);
   }, []);
 
-  const handleServe = (orderId: string) => {
-    setRemovingOrders((prev) => new Set(prev).add(orderId));
-    
-    // Update status in allOrders for history
-    setAllOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId ? { ...order, status: "served" as const } : order
-      )
-    );
+  const handleServe = async (orderId: string) => {
+    // Optimistic UI update
+    const previousOrders = [...orders];
+    setOrders(prev => prev.filter(o => o.id !== orderId));
 
-    // Remove from active orders after animation
-    setTimeout(() => {
-      setOrders((prev) => prev.filter((order) => order.id !== orderId));
-      setRemovingOrders((prev) => {
-        const next = new Set(prev);
-        next.delete(orderId);
-        return next;
-      });
-    }, 300);
+    try {
+        const res = await fetch(`http://localhost:5000/api/kitchen/serve/${orderId}`, { method: "PUT" });
+        if (res.ok) {
+            toast.success("Order served!");
+        } else {
+            throw new Error("Failed");
+        }
+    } catch (e) { 
+        toast.error("Failed to update status");
+        setOrders(previousOrders); // Rollback
+    }
   };
-
-  const handleSelectTable = (tableNumber: number) => {
-    setSelectedTable(tableNumber);
-    setTableHistoryOpen(true);
-  };
-
-  const tableOrders = selectedTable
-    ? allOrders.filter((order) => order.tableNumber === selectedTable)
-    : [];
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      {/* Header */}
-      <header className="mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="bg-primary rounded-lg p-3">
-              <UtensilsCrossed className="h-8 w-8 text-primary-foreground" />
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6 font-sans">
+      <header className="mb-8 flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+         <div className="flex items-center gap-4">
+            <div className="bg-blue-600 rounded-lg p-3 text-white shadow-blue-200 shadow-lg">
+                <UtensilsCrossed className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-foreground">ระบบแสดงผลออเดอร์ครัว</h1>
-              <p className="text-muted-foreground">Kitchen Display System</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Kitchen Display System</h1>
+                <p className="text-slate-500 text-sm">Real-time Orders</p>
             </div>
-          </div>
-          <Button
-            onClick={() => setTableSelectorOpen(true)}
-            size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xl px-8 py-6 rounded-xl transition-all hover:scale-105"
-          >
-            <UtensilsCrossed className="mr-2 h-6 w-6" />
-            โต๊ะ
-          </Button>
-        </div>
+         </div>
+         <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-full border border-green-200">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </span>
+            <span className="text-sm font-semibold">Live</span>
+         </div>
       </header>
 
-      {/* Orders Queue */}
-      <main>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-foreground">คิวออเดอร์</h2>
-          <div className="text-muted-foreground">
-            รายการทั้งหมด: <span className="font-bold text-foreground">{orders.length}</span>
-          </div>
-        </div>
-
-        {orders.length === 0 ? (
-          <div className="bg-card rounded-lg border border-border p-12 text-center">
-            <UtensilsCrossed className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-xl text-muted-foreground">ไม่มีออเดอร์ในขณะนี้</p>
-          </div>
+      <main className="grid grid-cols-1 gap-6 max-w-5xl mx-auto">
+        {isLoading && orders.length === 0 ? (
+             <div className="text-center py-20 text-slate-400">Loading orders...</div>
+        ) : orders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
+                <UtensilsCrossed className="w-16 h-16 mb-4 opacity-20" />
+                <div className="text-xl font-medium">No Pending Orders</div>
+                <p>Waiting for new orders...</p>
+            </div>
         ) : (
-          <div className="space-y-4">
-            {orders.map((order) => (
-              <OrderStrip
-                key={order.id}
-                order={order}
-                onServe={handleServe}
-                isRemoving={removingOrders.has(order.id)}
-              />
-            ))}
-          </div>
+            orders.map(order => (
+                <OrderStrip key={order.id} order={order} onServe={handleServe} />
+            ))
         )}
       </main>
-
-      {/* Modals */}
-      <TableSelector
-        open={tableSelectorOpen}
-        onOpenChange={setTableSelectorOpen}
-        onSelectTable={handleSelectTable}
-      />
-      <TableHistory
-        open={tableHistoryOpen}
-        onOpenChange={setTableHistoryOpen}
-        tableNumber={selectedTable}
-        orders={tableOrders}
-      />
     </div>
   );
 };
