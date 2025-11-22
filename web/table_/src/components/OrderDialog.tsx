@@ -11,10 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { CounterButton } from "@/components/CounterButton";
-import { supabase } from "@/integrations/supabase/client";
+// import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { stat } from "fs";
-import { start } from "repl";
+// import { stat } from "fs";
+// import { start } from "repl";
 
 interface OrderDialogProps {
   tableNumber: number;
@@ -58,27 +58,45 @@ const handleCreateOrder = async () => {
 
   setLoading(true);
 
-  try {
-    const response = await fetch(`http://localhost:5000/api/restaurant_table/${tableNumber}`, {
-      method: "PUT",
+try {
+      // 1. เตรียม Payload สำหรับ POST End-point ใหม่
+    const payload = {
+      table_number: tableNumber, // ใช้ table_number ซึ่ง Backend จะนำไปหา table_id เอง
+      emp_id: 1, // *สมมติ: ยังไม่มีระบบเลือกพนักงาน, ใช้ ID 1 ชั่วคราว*
+      num_adults: adults,
+      num_children: kids,
+      adult_price: adultPrice,
+      child_price: kidPrice,
+        // ไม่ต้องส่ง status/capacity เพราะ Backend จัดการใน Transaction เดียวแล้ว
+    };
+
+      // 2. เรียกใช้ POST End-point ใหม่
+    const response = await fetch(`http://localhost:5000/api/orders/open`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        capacity: adults + kids,
-        status: "Occupied"
-      })
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json();
 
-    if (!response.ok) throw new Error(data.error || "Failed to update table");
+      // 3. จัดการ Error (เช่น โต๊ะไม่ว่าง หรือ Server Error)
+    if (!response.ok) {
+      throw new Error(data.error || "สร้างออเดอร์และเปิดโต๊ะไม่สำเร็จ");
+    }
 
-    toast.success("สร้างออเดอร์สำเร็จ");
-    onOrderCreated();
-    navigate(`/order-summary/${tableNumber}`);
-  } catch (error) {
-    console.error(error);
-    toast.error("สร้างออเดอร์ไม่สำเร็จ");
-  }
+      // 4. สำเร็จ: ดึง Order ID และอัปเดต UI
+    const newOrderId = data.order_id; //  ดึง Order ID จาก Response Body
+      
+    toast.success("สร้างออเดอร์และเปิดโต๊ะสำเร็จ");
+    onOrderCreated(); // ปิด Dialog และ Refetch ข้อมูลโต๊ะใน Tables.tsx
+
+      // 5. นำทางไปหน้าสรุปออเดอร์ด้วย ID ของ Order ที่สร้างใหม่
+    navigate(`/order-summary/${newOrderId}`); 
+      
+    } catch (error) {
+      console.error("Error creating order:", error);
+      toast.error(error.message || "สร้างออเดอร์ไม่สำเร็จ (Server Error)");
+    }
 
   setLoading(false);
 };

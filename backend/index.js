@@ -23,7 +23,7 @@ try {
 }
 
 app.use(cors({
-    origin: "http://localhost:8080",   // อนุญาตให้ frontend เข้าถึง
+    origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],   // อนุญาตให้ frontend เข้าถึง
     methods: ["GET", "POST", "PUT", "DELETE"], 
     credentials: true
 }));
@@ -57,24 +57,168 @@ app.get('/api/employee', async (req, res) => {
     }
 });
 
-app.put('/api/restaurant_table/:table_number', async (req, res) => {
-    const { table_number } = req.params;
-    const { capacity, status } = req.body;
+// End-point สำหรับเปิดโต๊ะและสร้าง Order (ใช้ Transaction)
+app.post('/api/orders/open', async (req, res) => {
+    // 1. ดึงข้อมูลที่จำเป็น
+    const { 
+        table_number, // ดึงจาก Frontend
+        emp_id, 
+        num_adults, 
+        num_children, 
+        adult_price, 
+        child_price 
+    } = req.body;
+    
+    // คำนวณจำนวนลูกค้าทั้งหมด
+    const num_of_customers = num_adults + num_children;
+    
+    let connection;
 
     try {
-        const [result] = await pool.query(
-            'UPDATE restaurant_table SET capacity = ?, status = ? WHERE table_number = ?',
-            [capacity, status, table_number]
+        // 2. ขอ Connection จาก Pool เพื่อเริ่ม Transaction
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // 3. (A) ค้นหา table_id จาก table_number ก่อน
+        const [tableRows] = await connection.query(
+            "SELECT table_id, status FROM restaurant_table WHERE table_number = ?",
+            [table_number]
         );
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: "Table not found" });
+        if (tableRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ error: "Table number not found." });
+        }
+        
+        const { table_id, status } = tableRows[0];
+        
+        // ตรวจสอบสถานะโต๊ะก่อน
+        if (status !== 'Available') {
+            await connection.rollback();
+            return res.status(409).json({ error: `Table ${table_number} is already ${status}.` });
         }
 
-        res.json({ success: true, table_number, message: "Table updated successfully" });
+        // 4. (B) อัปเดตสถานะโต๊ะให้เป็น 'Occupied'
+        await connection.query(
+            `UPDATE restaurant_table 
+             SET status = 'Occupied' 
+             WHERE table_id = ?`,
+            [table_id]
+        );
+
+        // 5. (C) สร้าง Order ใหม่ โดยใช้ table_id ที่ค้นหาได้
+        const [orderResult] = await connection.query(
+            `INSERT INTO orders 
+             (table_id, emp_id, start_time, num_adults, num_children, adult_price, child_price, num_of_customers) 
+             VALUES (?, ?, NOW(), ?, ?, ?, ?, ?)`,
+            [table_id, emp_id, num_adults, num_children, adult_price, child_price, num_of_customers]
+        );
+        
+        const newOrderId = orderResult.insertId;
+
+        // 6. Commit Transaction เมื่อทุกอย่างสำเร็จ
+        await connection.commit();
+
+        // 7. ส่งผลลัพธ์กลับ
+        res.status(201).json({ 
+            success: true, 
+            message: "Table successfully occupied and Order created.", 
+            order_id: newOrderId,
+            table_number: table_number
+        });
+
     } catch (error) {
-        console.error("Error updating table:", error);
-        res.status(500).json({ error: "Failed to update table" });
+        // 8. Rollback หากมีข้อผิดพลาด
+        if (connection) {
+            await connection.rollback();
+        }
+        console.error("Error opening table and creating order:", error);
+        res.status(500).json({ error: "Failed to open table due to server error." });
+    } finally {
+        // 9. คืน Connection กลับ Pool
+        if (connection) {
+            connection.release();
+        }
+    }
+});
+
+// End-point สำหรับดึงข้อมูล Order เดียว
+app.get('/api/orders/:orderId', async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+        const [rows] = await pool.query(
+            // อาจจะ Join ตาราง restaurant_table ด้วย เพื่อดึง table_number
+            `SELECT 
+                o.*, 
+                rt.table_number 
+             FROM orders o
+             JOIN restaurant_table rt ON o.table_id = rt.table_id
+             WHERE o.order_id = ?`,
+            [orderId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "Order not found." });
+        }
+
+        res.json({ success: true, order: rows[0] });
+    } catch (error) {
+        console.error("Error fetching order:", error);
+        res.status(500).json({ error: "Failed to fetch order data." });
+    }
+});
+
+// End-point สำหรับปิดออร์เดอร์และคืนสถานะโต๊ะ
+app.put('/api/orders/:orderId/close', async (req, res) => {
+    const { orderId } = req.params;
+    let connection;
+
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // 1. อัปเดตสถานะ Order เป็น 'Closed' และบันทึก end_time
+        const [orderUpdateResult] = await connection.query(
+            `UPDATE orders 
+             SET status = 'Closed', end_time = NOW() 
+             WHERE order_id = ? AND status = 'Open'`,
+            [orderId]
+        );
+
+        if (orderUpdateResult.affectedRows === 0) {
+            await connection.rollback();
+            return res.status(409).json({ error: "Order not found or already closed/cancelled." });
+        }
+
+        // 2. ค้นหา table_id เพื่อคืนสถานะโต๊ะ
+        const [orderRows] = await connection.query(
+            "SELECT table_id FROM orders WHERE order_id = ?",
+            [orderId]
+        );
+        const tableId = orderRows[0].table_id;
+
+        // 3. อัปเดตสถานะโต๊ะใน restaurant_table ให้เป็น 'Available'
+        await connection.query(
+            `UPDATE restaurant_table 
+             SET status = 'Available' 
+             WHERE table_id = ?`,
+            [tableId]
+        );
+
+        await connection.commit();
+
+        res.json({ success: true, message: "Order closed and table made available." });
+    } catch (error) {
+        if (connection) {
+            await connection.rollback();
+        }
+        console.error("Error closing order:", error);
+        res.status(500).json({ error: "Failed to close order due to server error." });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
     }
 });
 
