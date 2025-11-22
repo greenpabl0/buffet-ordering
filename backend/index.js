@@ -142,6 +142,28 @@ app.post('/api/orders/open', async (req, res) => {
     }
 });
 
+// End-point สำหรับดึงรายการออเดอร์ที่ยังเปิดอยู่ทั้งหมด (Active Orders)
+app.get('/api/orders/active', async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `SELECT 
+                o.order_id, 
+                o.status,
+                rt.table_number,
+                rt.table_id
+             FROM orders o
+             JOIN restaurant_table rt ON o.table_id = rt.table_id
+             WHERE o.status = 'Open'` // กรองเฉพาะสถานะ Open (Active)
+        );
+
+        // ส่งกลับเป็น Array ของ orders ที่ยังเปิดอยู่
+        res.json({ success: true, orders: rows });
+    } catch (error) {
+        console.error("Error fetching active orders:", error);
+        res.status(500).json({ error: "Failed to fetch active orders data." });
+    }
+});
+
 // End-point สำหรับดึงข้อมูล Order เดียว
 app.get('/api/orders/:orderId', async (req, res) => {
     const { orderId } = req.params;
