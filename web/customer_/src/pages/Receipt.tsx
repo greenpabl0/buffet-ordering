@@ -1,25 +1,29 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Receipt as ReceiptIcon } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
 
-// Inline Header (Simplified)
-const Header = () => (
-  <header className="sticky top-0 z-50 bg-secondary border-b-2 border-primary shadow-md p-3 flex justify-center">
-     <h1 className="font-bold text-lg">Hot Pot Buffet</h1>
+const Header = ({ tableNumber }: { tableNumber?: number }) => (
+  <header className="sticky top-0 z-50 bg-secondary border-b-2 border-primary shadow-md p-3">
+     <div className="container mx-auto flex justify-between items-center">
+        <h1 className="font-bold text-lg text-secondary-foreground">Hot Pot Buffet</h1>
+        <span className="text-sm text-muted-foreground">{tableNumber ? `โต๊ะ ${tableNumber}` : "..."}</span>
+     </div>
   </header>
 );
 
 const Receipt = () => {
   const navigate = useNavigate();
-  const orderId = localStorage.getItem("currentOrderId");
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get("orderId");
 
   const { data, isLoading } = useQuery({
     queryKey: ["receipt", orderId],
     queryFn: async () => {
+        if(!orderId) return null;
         const res = await fetch(`http://localhost:5000/api/orders/${orderId}`);
         if (!res.ok) throw new Error("Failed");
         return res.json();
@@ -27,12 +31,12 @@ const Receipt = () => {
     refetchInterval: 5000,
   });
 
+  if (!orderId) return <div>Error</div>;
   if (isLoading) return <div>Loading...</div>;
   if (!data) return <div>No data</div>;
 
   const { order, items } = data;
   
-  // Pricing Logic
   const adultPrice = 299;
   const kidPrice = 199;
   const refillPrice = 29;
@@ -41,7 +45,6 @@ const Receipt = () => {
   const kidTotal = order.num_children * kidPrice;
   const refillTotal = order.num_of_customers * refillPrice;
   
-  // Calculate A La Carte
   const alaCarteItems = items.filter((i: any) => Number(i.price) > 0);
   const alaCarteTotal = alaCarteItems.reduce((sum: number, i: any) => sum + (Number(i.price) * i.qty), 0);
   
@@ -49,10 +52,10 @@ const Receipt = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24 font-sans">
-      <Header />
+      <Header tableNumber={order.table_number} />
       <main className="container max-w-2xl mx-auto px-4 py-4 space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="w-5 h-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/?orderId=${orderId}`)}><ArrowLeft className="w-5 h-5" /></Button>
           <h1 className="text-2xl font-bold">ใบเสร็จโดยประมาณ</h1>
         </div>
 
@@ -63,7 +66,6 @@ const Receipt = () => {
             </div>
             <Separator />
             
-            {/* Buffet Head Count */}
             <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                     <span>ผู้ใหญ่ ({order.num_adults} ท่าน)</span>
@@ -81,7 +83,6 @@ const Receipt = () => {
                 </div>
             </div>
 
-            {/* Add-ons */}
             {alaCarteItems.length > 0 && (
                 <>
                     <Separator />
@@ -111,9 +112,8 @@ const Receipt = () => {
         </Card>
       </main>
       
-      {/* Simple Bottom Nav for context */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-center">
-         <Button variant="ghost" onClick={() => navigate('/')}>กลับหน้าเมนู</Button>
+         <Button variant="ghost" onClick={() => navigate(`/?orderId=${orderId}`)}>กลับหน้าเมนู</Button>
       </div>
     </div>
   );

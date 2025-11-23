@@ -19,13 +19,7 @@ const Header = ({ tableNumber = 13 }: HeaderProps) => {
             </div>
           </div>
           
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="border-secondary-foreground/30 text-secondary-foreground hover:bg-secondary-foreground/10"
-          >
-            TH
-          </Button>
+          
         </div>
       </div>
     </header>

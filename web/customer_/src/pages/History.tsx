@@ -1,61 +1,71 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Clock, CheckCircle, Utensils, Home, ShoppingCart, History as HistoryIcon, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 
-// Inline Header & Nav
-const Header = () => (
-  <header className="sticky top-0 z-50 bg-secondary border-b-2 border-primary shadow-md p-3"><div className="container mx-auto font-bold text-lg text-center">ประวัติการสั่ง</div></header>
+const Header = ({ tableNumber }: { tableNumber?: number }) => (
+  <header className="sticky top-0 z-50 bg-secondary border-b-2 border-primary shadow-md">
+    <div className="container max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-lg">🔥</div>
+          <div>
+            <h1 className="font-bold text-lg text-secondary-foreground">Hot Pot Buffet</h1>
+            <p className="text-xs text-secondary-foreground/80">{tableNumber ? `โต๊ะที่: ${tableNumber}` : "..."}</p>
+          </div>
+        </div>
+    </div>
+  </header>
 );
-const BottomNav = () => {
+
+const BottomNav = ({ orderId }: { orderId: string }) => {
     const navigate = useNavigate();
+    const navTo = (path: string) => navigate(`${path}?orderId=${orderId}`);
     return (
         <nav className="fixed bottom-0 left-0 right-0 bg-card border-t z-40 h-16 flex items-center justify-around">
-            <Button variant="ghost" className="flex flex-col h-full gap-1" onClick={() => navigate("/")}><Home className="h-5 w-5"/><span className="text-[10px]">เมนู</span></Button>
-            <Button variant="ghost" className="flex flex-col h-full gap-1" onClick={() => navigate("/cart")}><ShoppingCart className="h-5 w-5"/><span className="text-[10px]">ตะกร้า</span></Button>
-            <Button variant="ghost" className="flex flex-col h-full gap-1 text-primary" onClick={() => navigate("/history")}><HistoryIcon className="h-5 w-5"/><span className="text-[10px]">ประวัติ</span></Button>
-            <Button variant="ghost" className="flex flex-col h-full gap-1" onClick={() => navigate("/receipt")}><Receipt className="h-5 w-5"/><span className="text-[10px]">ใบเสร็จ</span></Button>
+            <Button variant="ghost" className="flex flex-col h-full gap-1" onClick={() => navTo("/")}><Home className="h-5 w-5"/><span className="text-[10px]">เมนู</span></Button>
+            <Button variant="ghost" className="flex flex-col h-full gap-1" onClick={() => navTo("/cart")}><ShoppingCart className="h-5 w-5"/><span className="text-[10px]">ตะกร้า</span></Button>
+            <Button variant="ghost" className="flex flex-col h-full gap-1 text-primary" onClick={() => navTo("/history")}><HistoryIcon className="h-5 w-5"/><span className="text-[10px]">ประวัติ</span></Button>
+            <Button variant="ghost" className="flex flex-col h-full gap-1" onClick={() => navTo("/receipt")}><Receipt className="h-5 w-5"/><span className="text-[10px]">ใบเสร็จ</span></Button>
         </nav>
     );
 };
 
 const History = () => {
   const navigate = useNavigate();
-  const orderId = localStorage.getItem("currentOrderId");
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get("orderId");
 
-  // ดึงข้อมูลออเดอร์จริงจาก Database
   const { data, isLoading } = useQuery({
     queryKey: ["orderHistory", orderId],
     queryFn: async () => {
         if(!orderId) return null;
         const res = await fetch(`http://localhost:5000/api/orders/${orderId}`);
-        if (!res.ok) return null; // ถ้าไม่เจอให้ return null
+        if (!res.ok) return null;
         return res.json();
     },
-    refetchInterval: 3000, // อัปเดตสถานะทุก 3 วินาที
+    refetchInterval: 3000,
   });
 
+  if (!orderId) return <div>Error</div>;
   if (isLoading) return <div className="p-8 text-center">Loading...</div>;
 
-  // เช็คว่ามีรายการไหม
   const hasItems = data && data.items && data.items.length > 0;
 
   return (
     <div className="min-h-screen bg-background pb-24 font-sans">
-      <Header />
+      <Header tableNumber={data?.order?.table_number} />
       <main className="container max-w-6xl mx-auto px-4 py-4 space-y-4">
         {!hasItems ? (
             <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
                 <Utensils className="w-16 h-16 mb-4 opacity-20" />
                 <p className="text-lg">ยังไม่มีประวัติการสั่งอาหาร</p>
-                <Button variant="link" onClick={() => navigate("/")}>ไปหน้าเมนู</Button>
+                <Button variant="link" onClick={() => navigate(`/?orderId=${orderId}`)}>ไปหน้าเมนู</Button>
             </div>
         ) : (
             <div className="space-y-3">
-                {/* เรียงรายการ: Pending ขึ้นก่อน */}
                 {data.items.sort((a: any, b: any) => (a.status === 'Pending' ? -1 : 1)).map((item: any, idx: number) => (
                     <Card key={idx} className="p-4 flex justify-between items-center border-l-4 border-l-primary">
                         <div>
@@ -77,7 +87,7 @@ const History = () => {
             </div>
         )}
       </main>
-      <BottomNav />
+      <BottomNav orderId={orderId} />
     </div>
   );
 };
