@@ -36,11 +36,11 @@ app.get('/api/menu', async (req, res) => {
 });
 
 app.post('/api/menu', async (req, res) => {
-    const { name, category, price, is_buffet, image_url } = req.body;
+    const { name, category, price, is_buffet, img_url } = req.body;
     try {
         await pool.query(
-            'INSERT INTO menu (menu_name, category, price, is_buffet, image_url) VALUES (?, ?, ?, ?, ?)',
-            [name, category, price, is_buffet, image_url]
+            'INSERT INTO menu (menu_name, category, price, is_buffet, img_url) VALUES (?, ?, ?, ?, ?)',
+            [name, category, price, is_buffet, img_url]
         );
         res.json({ success: true });
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -69,7 +69,7 @@ app.get('/api/orders/:orderId', async (req, res) => {
         
         // ดึงรายการอาหาร (เรียงตามเวลาล่าสุด)
         const [items] = await pool.query(`
-            SELECT od.*, m.menu_name, m.price, m.image_url 
+            SELECT od.*, m.menu_name, m.price, m.img_url 
             FROM order_detail od
             JOIN menu m ON od.menu_id = m.menu_id
             WHERE od.order_id = ? AND od.status != 'Cancelled'
@@ -93,8 +93,8 @@ app.post('/api/orders/open', async (req, res) => {
         }
 
         const [resOrder] = await connection.query(
-            `INSERT INTO orders (table_id, start_time, status, num_adults, num_children, adult_price, child_price, num_of_customers) 
-             VALUES (?, NOW(), 'Open', ?, ?, 299.00, 199.00, ?)`,
+            `INSERT INTO orders (table_id, start_time, status, num_adults, num_children, num_of_customers) 
+             VALUES (?, NOW(), 'Open', ?, ?, ?)`,
             [tables[0].table_id, adults, children, adults + children]
         );
 
@@ -116,7 +116,7 @@ app.post('/api/orders/:orderId/items', async (req, res) => {
     try {
         await connection.beginTransaction();
         // Insert พร้อม created_at (ใช้ NOW())
-        const sql = 'INSERT INTO order_detail (order_id, menu_id, qty, status, note, created_at) VALUES ?';
+        const sql = 'INSERT INTO order_detail (order_id, menu_id, qty, status, note, created_at) VALUES ?'; // target multiple rows
         const values = items.map(i => [orderId, i.id, i.quantity, 'Pending', i.note || '', new Date()]);
         
         await connection.query(sql, [values]);

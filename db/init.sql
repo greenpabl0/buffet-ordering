@@ -5,15 +5,8 @@ create table restaurant_table
 	(
     table_id 		int auto_increment primary key,
     table_number 	int unique not null,
-    capacity 		int not null,
-    status 			enum('Available','Occupied','Reserved') default 'Available'
-	);
-
-create table employee 
-	(
-    emp_id 			int auto_increment primary key,
-    emp_name 		varchar(100) not null,
-    phone 			varchar(20)
+    capacity 		int not null default 0,
+    status 			enum('Available','Occupied') default 'Available'
 	);
 
 create table menu 
@@ -22,28 +15,24 @@ create table menu
     menu_name 		varchar(100) not null,
     category 		varchar(50),
     price 			decimal(10,2) not null check (price >= 0),
-    is_buffet 		boolean default true
+    is_buffet 		boolean default true,
+    img_url 		varchar(255)
 	);
 
 create table orders 
 	(
     order_id 		int auto_increment primary key,
     table_id 		int not null,
-    emp_id          int,
     start_time 		datetime not null,
     end_time 		datetime,
     status 			enum('Open','Closed','Cancelled') default 'Open',
 
     num_adults      int not null check (num_adults >= 0),
     num_children    int not null check (num_children >= 0),
-    adult_price     decimal(10,2) not null,
-    child_price     decimal(10,2) not null,
     num_of_customers int check (num_of_customers > 0),
     foreign key (table_id) references restaurant_table(table_id)
         on update cascade
-        on delete restrict,
-    foreign key (emp_id) references employee(emp_id)
-        on delete set null
+        on delete restrict
 	);
 
 create table order_detail 
@@ -54,6 +43,7 @@ create table order_detail
     qty 			int not null check (qty > 0),
     status 			enum('Pending','Served','Cancelled') default 'Pending',
     note 			varchar(255),
+    created_at      datetime,
     foreign key (order_id) references orders(order_id)
         on delete cascade,
     foreign key (menu_id) references menu(menu_id)
@@ -64,82 +54,75 @@ create table bill
 	(
     bill_id 		int auto_increment primary key,
     order_id 		int not null,
-    emp_id 	        int,
-    buffet_amount   decimal(10,2),
-    other_amount    decimal(10,2),
     total_amount 	decimal(10,2) not null,
-    discount 		decimal(10,2) default 0,
-    net_amount 		decimal(10,2) generated always as (total_amount - discount) stored,
     pay_time 		datetime default current_timestamp,
     foreign key (order_id) references orders(order_id)
-        on delete cascade,
-    foreign key (emp_id) references employee(emp_id)
-        on delete set null
+        on delete cascade
 	);
+
+
+CREATE INDEX idx_orders_table_status ON orders (table_id, status);
+CREATE INDEX idx_order_detail_order_id ON order_detail (order_id);
+CREATE INDEX idx_order_detail_status_created_at ON order_detail (status, created_at);
+CREATE INDEX idx_bill_order_id ON bill (order_id);
 
 
 -- mock data insertion
 
 -- menu items
-INSERT INTO menu (menu_name, category, price, is_buffet) VALUES
+INSERT INTO menu (menu_name, category, price, is_buffet, img_url) VALUES
 -- Meat/Pork
-('Wagyu A5 Beef (Premium)', 'meat', 199.00, FALSE),
-('Australian Beef (Premium)', 'meat', 99.00, FALSE),
-('Pork Belly Slices', 'meat', 0.00, TRUE),
-('Pork Slices', 'meat', 0.00, TRUE),
-('Beef Slices', 'meat', 0.00, TRUE),
-('Minced Pork', 'meat', 0.00, TRUE),
+('Wagyu A5 Beef (Premium)', 'meat', 199.00, FALSE, NULL),
+('Australian Beef (Premium)', 'meat', 99.00, FALSE, NULL),
+('Pork Belly Slices', 'meat', 0.00, TRUE, NULL),
+('Pork Slices', 'meat', 0.00, TRUE, NULL),
+('Beef Slices', 'meat', 0.00, TRUE, NULL),
+('Minced Pork', 'meat', 0.00, TRUE, NULL),
 
 -- Seafood
-('River Prawns (Premium)', 'seafood', 149.00, FALSE),
-('White Shrimp', 'seafood', 0.00, TRUE),
-('Squid', 'seafood', 0.00, TRUE),
-('Mussels', 'seafood', 0.00, TRUE),
-('Dory Fish', 'seafood', 0.00, TRUE),
-('Crab Sticks', 'seafood', 0.00, TRUE),
+('River Prawns (Premium)', 'seafood', 149.00, FALSE, NULL),
+('White Shrimp', 'seafood', 0.00, TRUE, NULL),
+('Squid', 'seafood', 0.00, TRUE, NULL),
+('Mussels', 'seafood', 0.00, TRUE, NULL),
+('Dory Fish', 'seafood', 0.00, TRUE, NULL),
+('Crab Sticks', 'seafood', 0.00, TRUE, NULL),
 
 -- Vegetables
-('Chinese Water Spinach', 'vegetables', 0.00, TRUE),
-('Chinese Cabbage', 'vegetables', 0.00, TRUE),
-('Spring Onion', 'vegetables', 0.00, TRUE),
-('Enoki Mushroom', 'vegetables', 0.00, TRUE),
-('Straw Mushroom', 'vegetables', 0.00, TRUE),
-('Baby Corn', 'vegetables', 0.00, TRUE),
+('Chinese Water Spinach', 'vegetables', 0.00, TRUE, NULL),
+('Chinese Cabbage', 'vegetables', 0.00, TRUE, NULL),
+('Spring Onion', 'vegetables', 0.00, TRUE, NULL),
+('Enoki Mushroom', 'vegetables', 0.00, TRUE, NULL),
+('Straw Mushroom', 'vegetables', 0.00, TRUE, NULL),
+('Baby Corn', 'vegetables', 0.00, TRUE, NULL),
 
 -- Balls/Noodles
-('Fish Balls', 'balls', 0.00, TRUE),
-('Beef Balls', 'balls', 0.00, TRUE),
-('Shrimp Balls', 'balls', 0.00, TRUE),
-('Egg Noodles', 'balls', 0.00, TRUE),
-('Udon Noodles', 'balls', 0.00, TRUE),
-('Glass Noodles', 'balls', 0.00, TRUE),
+('Fish Balls', 'balls', 0.00, TRUE, NULL),
+('Beef Balls', 'balls', 0.00, TRUE, NULL),
+('Shrimp Balls', 'balls', 0.00, TRUE, NULL),
+('Egg Noodles', 'balls', 0.00, TRUE, NULL),
+('Udon Noodles', 'balls', 0.00, TRUE, NULL),
+('Glass Noodles', 'balls', 0.00, TRUE, NULL),
 
 -- A La Carte Dishes
-('Fried Chicken Wings', 'alacarte', 89.00, FALSE),
-('French Fries', 'alacarte', 59.00, FALSE),
-('Garlic Fried Rice', 'alacarte', 69.00, FALSE),
-('Chicken Karaage', 'alacarte', 79.00, FALSE),
+('Fried Chicken Wings', 'alacarte', 89.00, FALSE, NULL),
+('French Fries', 'alacarte', 59.00, FALSE, NULL),
+('Garlic Fried Rice', 'alacarte', 69.00, FALSE, NULL),
+('Chicken Karaage', 'alacarte', 79.00, FALSE, NULL),
 
 -- Desserts
-('Vanilla Ice Cream', 'desserts', 0.00, TRUE),
-('Chocolate Ice Cream', 'desserts', 0.00, TRUE),
-('Strawberry Ice Cream', 'desserts', 0.00, TRUE),
-('Chocolate Cake', 'desserts', 49.00, FALSE);
+('Vanilla Ice Cream', 'desserts', 0.00, TRUE, NULL),
+('Chocolate Ice Cream', 'desserts', 0.00, TRUE, NULL),
+('Strawberry Ice Cream', 'desserts', 0.00, TRUE, NULL),
+('Chocolate Cake', 'desserts', 49.00, FALSE, NULL);
 
 -- restaurant tables
-INSERT INTO restaurant_table (table_number, capacity) VALUES
-(1, 4), 
-(2, 4), 
-(3, 6), 
-(4, 2), 
-(5, 8), 
-(6, 4), 
-(7, 2), 
-(8, 6), 
-(9, 4);
-
--- employees
-INSERT INTO employee (emp_name, phone) VALUES
-('Sompong Sookjai', '0812345678'),
-('Suda Rakdee', '0898765432'),
-('Manee Khunmee', '0925551212');
+INSERT INTO restaurant_table (table_number) VALUES
+(1), 
+(2), 
+(3), 
+(4), 
+(5), 
+(6), 
+(7), 
+(8), 
+(9);
