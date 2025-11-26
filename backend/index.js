@@ -4,6 +4,7 @@ const mysql = require('mysql2/promise');
 const app = express();
 const port = 5000;
 
+// Config Database Connection
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -23,16 +24,28 @@ async function initDB() {
 }
 initDB();
 
+// Log Middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
 app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE"], credentials: true }));
 app.use(express.json());
 
-// --- 1. Menu Management (CRUD) ---
+app.get('/api/status', (req, res) => res.json({ status: 'OK', time: new Date() }));
+
+// --- 1. Menu Management ---
 
 app.get('/api/menu', async (req, res) => {
     try {
+        // ดึงข้อมูลจริงจาก DB (รวม image_url)
         const [rows] = await pool.query('SELECT * FROM menu');
         res.json(rows);
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    } catch (error) { 
+        console.error(error);
+        res.status(500).json({ error: error.message }); 
+    }
 });
 
 app.post('/api/menu', async (req, res) => {
@@ -43,7 +56,10 @@ app.post('/api/menu', async (req, res) => {
             [name, category, price, is_buffet, image_url]
         );
         res.json({ success: true });
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    } catch (error) { 
+        console.error(error);
+        res.status(500).json({ error: error.message }); 
+    }
 });
 
 app.delete('/api/menu/:id', async (req, res) => {
@@ -55,10 +71,56 @@ app.delete('/api/menu/:id', async (req, res) => {
 
 // --- 2. Order Management ---
 
+app.get('/api/tables', async (req, res) => {
+    try {
+        const sql = `
+            SELECT t.*, o.order_id as active_order_id
+            FROM restaurant_table t
+            LEFT JOIN orders o ON t.table_id = o.table_id AND o.status = 'Open'
+            ORDER BY t.table_number ASC
+        `;
+        const [rows] = await pool.query(sql);
+        res.json(rows);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/orders/open', async (req, res) => {
+    const { table_number, adults, children } = req.body;
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        const [tables] = await connection.query('SELECT table_id, status FROM restaurant_table WHERE table_number = ?', [table_number]);
+        if (tables.length === 0) throw new Error('Table not found');
+        
+        const tableId = tables[0].table_id;
+
+        if (tables[0].status === 'Occupied') {
+            const [activeOrders] = await connection.query('SELECT order_id FROM orders WHERE table_id = ? AND status = "Open"', [tableId]);
+            if (activeOrders.length > 0) {
+                throw new Error('Table is currently occupied with an active order');
+            }
+        }
+
+        const [resOrder] = await connection.query(
+            `INSERT INTO orders (table_id, start_time, status, num_adults, num_children, adult_price, child_price, num_of_customers) 
+             VALUES (?, NOW(), 'Open', ?, ?, 299.00, 199.00, ?)`,
+            [tableId, adults, children, adults + children]
+        );
+
+        await connection.query('UPDATE restaurant_table SET status = "Occupied", capacity = ? WHERE table_id = ?', [adults + children, tableId]);
+
+        await connection.commit();
+        res.json({ success: true, orderId: resOrder.insertId });
+    } catch (error) {
+        await connection.rollback();
+        res.status(500).json({ error: error.message });
+    } finally { connection.release(); }
+});
+
 app.get('/api/orders/:orderId', async (req, res) => {
     try {
         const { orderId } = req.params;
-        // ดึงออเดอร์ (ใช้ LEFT JOIN เพื่อความชัวร์)
         const [orders] = await pool.query(`
             SELECT o.*, t.table_number 
             FROM orders o 
@@ -67,7 +129,6 @@ app.get('/api/orders/:orderId', async (req, res) => {
             
         if (orders.length === 0) return res.status(404).json({ error: "Order not found" });
         
-        // ดึงรายการอาหาร (เรียงตามเวลาล่าสุด)
         const [items] = await pool.query(`
             SELECT od.*, m.menu_name, m.price, m.image_url 
             FROM order_detail od
@@ -79,34 +140,6 @@ app.get('/api/orders/:orderId', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/api/orders/open', async (req, res) => {
-    const { table_number, adults, children } = req.body;
-    const connection = await pool.getConnection();
-    try {
-        await connection.beginTransaction();
-        const [tables] = await connection.query('SELECT table_id, status FROM restaurant_table WHERE table_number = ?', [table_number]);
-        if (tables.length === 0) throw new Error('Table not found');
-        
-        // Auto-close old order if exists
-        if (tables[0].status === 'Occupied') {
-             await connection.query('UPDATE orders SET status = "Closed", end_time = NOW() WHERE table_id = ? AND status = "Open"', [tables[0].table_id]);
-        }
-
-        const [resOrder] = await connection.query(
-            `INSERT INTO orders (table_id, start_time, status, num_adults, num_children, adult_price, child_price, num_of_customers) 
-             VALUES (?, NOW(), 'Open', ?, ?, 299.00, 199.00, ?)`,
-            [tables[0].table_id, adults, children, adults + children]
-        );
-
-        await connection.query('UPDATE restaurant_table SET status = "Occupied", capacity = ? WHERE table_id = ?', [adults + children, tables[0].table_id]);
-        await connection.commit();
-        res.json({ success: true, orderId: resOrder.insertId });
-    } catch (error) {
-        await connection.rollback();
-        res.status(500).json({ error: error.message });
-    } finally { connection.release(); }
-});
-
 app.post('/api/orders/:orderId/items', async (req, res) => {
     const { orderId } = req.params;
     const { items } = req.body;
@@ -115,7 +148,6 @@ app.post('/api/orders/:orderId/items', async (req, res) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
-        // Insert พร้อม created_at (ใช้ NOW())
         const sql = 'INSERT INTO order_detail (order_id, menu_id, qty, status, note, created_at) VALUES ?';
         const values = items.map(i => [orderId, i.id, i.quantity, 'Pending', i.note || '', new Date()]);
         
@@ -139,7 +171,8 @@ app.post('/api/orders/:orderId/checkout', async (req, res) => {
 
         await connection.query('UPDATE orders SET status = "Closed", end_time = NOW() WHERE order_id = ?', [orderId]);
         await connection.query('UPDATE restaurant_table SET status = "Available", capacity = 0 WHERE table_id = ?', [orders[0].table_id]);
-        // Insert bill without generated column
+        
+        // Insert bill (ไม่ต้องใส่ net_amount เพราะเป็น generated column)
         await connection.query('INSERT INTO bill (order_id, total_amount) VALUES (?, ?)', [orderId, total_amount || 0]);
 
         await connection.commit();
@@ -150,15 +183,12 @@ app.post('/api/orders/:orderId/checkout', async (req, res) => {
     } finally { connection.release(); }
 });
 
-// --- 3. Table & Kitchen Helpers ---
+// --- 3. Kitchen & Helpers ---
 
-// [NEW] API สำหรับบังคับ Reset โต๊ะ (แก้ปัญหาโต๊ะค้าง)
 app.post('/api/tables/:tableId/reset', async (req, res) => {
     const { tableId } = req.params;
     try {
-        // Force reset status
         await pool.query('UPDATE restaurant_table SET status = "Available", capacity = 0 WHERE table_id = ?', [tableId]);
-        // Close any open orders for this table
         await pool.query('UPDATE orders SET status = "Closed", end_time = NOW() WHERE table_id = ? AND status = "Open"', [tableId]);
         res.json({ success: true });
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -166,7 +196,6 @@ app.post('/api/tables/:tableId/reset', async (req, res) => {
 
 app.get('/api/kitchen/pending', async (req, res) => {
     try {
-        // ดึง order_detail พร้อม created_at เพื่อใช้จัดกลุ่ม Batch
         const sql = `
             SELECT 
                 od.order_detail_id as id,
@@ -186,11 +215,9 @@ app.get('/api/kitchen/pending', async (req, res) => {
         `;
         const [rows] = await pool.query(sql);
 
-        // Logic จัดกลุ่ม: Group by (Order ID + Timestamp Minute) 
         const batches = new Map();
-        
         rows.forEach(row => {
-            const timeKey = new Date(row.created_at).toISOString().substring(0, 16); // YYYY-MM-DDTHH:mm
+            const timeKey = new Date(row.created_at).toISOString().substring(0, 16);
             const batchKey = `${row.order_id}_${timeKey}`;
 
             if (!batches.has(batchKey)) {
@@ -216,19 +243,13 @@ app.get('/api/kitchen/pending', async (req, res) => {
 });
 
 app.put('/api/kitchen/serve/batch/:batchKey', async (req, res) => {
-    const { ids } = req.body; // expect [1, 2, 3]
+    const { ids } = req.body;
     try {
         await pool.query("UPDATE order_detail SET status = 'Served' WHERE order_detail_id IN (?)", [ids]);
         res.json({ success: true });
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/api/tables', async (req, res) => {
-    try {
-        const sql = `SELECT t.*, o.order_id as active_order_id FROM restaurant_table t LEFT JOIN orders o ON t.table_id = o.table_id AND o.status = 'Open' ORDER BY t.table_number ASC`;
-        const [rows] = await pool.query(sql);
-        res.json(rows);
-    } catch (error) { res.status(500).json({ error: error.message }); }
+app.listen(port, () => {
+    console.log(`Backend API listening on port ${port}`);
 });
-
-app.listen(port, () => console.log(`Backend running on port ${port}`));
