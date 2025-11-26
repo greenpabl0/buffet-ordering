@@ -103,8 +103,8 @@ app.post('/api/orders/open', async (req, res) => {
         }
 
         const [resOrder] = await connection.query(
-            `INSERT INTO orders (table_id, start_time, status, num_adults, num_children, adult_price, child_price, num_of_customers) 
-             VALUES (?, NOW(), 'Open', ?, ?, 299.00, 199.00, ?)`,
+            `INSERT INTO orders (table_id, start_time, status, num_adults, num_children, num_of_customers) 
+             VALUES (?, NOW(), 'Open', ?, ?, ?)`,
             [tableId, adults, children, adults + children]
         );
 
