@@ -185,7 +185,7 @@ const Index = () => {
             name: item.menu_name || item.name,       
             price: Number(item.price || 0),
             category: item.category,
-            image: item.image_url || "https://placehold.co/300x200",
+            image: item.img_url || "https://placehold.co/300x200",
             is_buffet: item.is_buffet
         }));
     }

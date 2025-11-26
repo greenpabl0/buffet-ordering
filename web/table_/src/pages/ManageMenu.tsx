@@ -14,7 +14,7 @@ const ManageMenu = () => {
   const navigate = useNavigate();
   const [isAddOpen, setIsAddOpen] = useState(false);
   // กำหนดค่าเริ่มต้น category เป็น 'meat'
-  const [formData, setFormData] = useState({ name: "", category: "meat", price: "0", is_buffet: true, image_url: "" });
+  const [formData, setFormData] = useState({ name: "", category: "meat", price: "0", is_buffet: true, img_url: "" });
 
   const { data: menuItems = [], refetch } = useQuery({
     queryKey: ["menu"],
@@ -36,7 +36,7 @@ const ManageMenu = () => {
         setIsAddOpen(false);
         refetch();
         // Reset form
-        setFormData({ name: "", category: "meat", price: "0", is_buffet: true, image_url: "" });
+        setFormData({ name: "", category: "meat", price: "0", is_buffet: true, img_url: "" });
     } catch(e) { toast.error("เพิ่มเมนูไม่สำเร็จ"); }
   };
 
@@ -75,7 +75,7 @@ const ManageMenu = () => {
             {menuItems.map((item: any) => (
                 <Card key={item.menu_id} className="overflow-hidden group relative hover:shadow-md transition-shadow">
                     <div className="relative h-40 bg-slate-100">
-                        <img src={item.image_url || "https://placehold.co/300x200"} alt={item.menu_name} className="w-full h-full object-cover"/>
+                        <img src={item.img_url || "https://placehold.co/300x200"} alt={item.menu_name} className="w-full h-full object-cover"/>
                         <button 
                             onClick={() => handleDelete(item.menu_id)} 
                             className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
@@ -123,7 +123,7 @@ const ManageMenu = () => {
 
                     <div className="grid gap-2">
                         <Label>URL รูปภาพ</Label>
-                        <Input value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} placeholder="https://..." />
+                        <Input value={formData.img_url} onChange={e => setFormData({...formData, img_url: e.target.value})} placeholder="https://..." />
                     </div>
                     <div className="flex items-center space-x-2 border p-3 rounded-md">
                         <Checkbox id="buffet" checked={formData.is_buffet} onCheckedChange={(c) => setFormData({...formData, is_buffet: c as boolean, price: c ? "0" : formData.price})} />
